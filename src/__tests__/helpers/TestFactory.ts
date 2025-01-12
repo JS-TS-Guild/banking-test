@@ -1,7 +1,7 @@
-import User from '@/models/user';
-import Bank from '@/models/bank';
-import { BankAccountId, UserId } from '@/types/Common';
-import GlobalRegistry from '@/services/GlobalRegistry';
+import User from "@/models/user";
+import Bank from "@/models/bank";
+import type { BankAccountId, UserId } from "@/types/Common";
+import GlobalRegistry from "@/services/GlobalRegistry";
 
 export interface TestFixtures {
   alice: User;
@@ -15,6 +15,7 @@ export interface TestFixtures {
   bobAccountId: BankAccountId;
 }
 
+// biome-ignore lint/complexity/noStaticOnlyClass: <explanation>
 export class TestFactory {
   static createFixtures(): TestFixtures {
     GlobalRegistry.clear();
@@ -26,8 +27,11 @@ export class TestFactory {
     const aliceAccountAllowsNegative = bankAllowsNegative.createAccount(200);
     const bobAccount = bank.createAccount(500);
 
-    const alice = User.create('Alice', [aliceAccount.getId(), aliceAccountAllowsNegative.getId()]);
-    const bob = User.create('Bob', [bobAccount.getId()]);
+    const alice = User.create("Alice", [
+      aliceAccount.getId(),
+      aliceAccountAllowsNegative.getId(),
+    ]);
+    const bob = User.create("Bob", [bobAccount.getId()]);
 
     return {
       alice,
@@ -38,7 +42,7 @@ export class TestFactory {
       bankAllowsNegative,
       aliceAccountId: aliceAccount.getId(),
       aliceAccountAllowsNegativeId: aliceAccountAllowsNegative.getId(),
-      bobAccountId: bobAccount.getId()
+      bobAccountId: bobAccount.getId(),
     };
   }
 
@@ -49,4 +53,4 @@ export class TestFactory {
   static createUser(name: string, accountIds: BankAccountId[]): User {
     return User.create(name, accountIds);
   }
-} 
+}
