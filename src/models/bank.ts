@@ -120,6 +120,25 @@ class Bank {
     return accountId;
   }
 
+  private findUserAccounts(userId: UserId): BankAccountId[] {
+    const user = GlobalRegistry.getUser(userId);
+    if (!user) {
+      throw new UserNotFoundError(userId);
+    }
+
+    // Get all accounts for this user in this bank, maintaining priority order
+    const accountIds = user
+      .getAccountIds()
+      .filter((id) => this.accounts.has(id));
+    if (accountIds.length === 0) {
+      throw new AccountNotFoundError(
+        `No accounts found for user ${userId} in bank ${this.id}`
+      );
+    }
+
+    return accountIds;
+  }
+
   send(
     fromUserId: UserId,
     toUserId: UserId,
@@ -130,30 +149,53 @@ class Bank {
       throw new BankError("Transfer amount must be positive");
     }
 
-    // Find source and target accounts
-    const fromAccountId = this.findUserAccount(fromUserId);
+    // Find all source accounts in priority order
+    const fromAccountIds = this.findUserAccounts(fromUserId);
     const toAccountId = this.findUserAccountInBank(toUserId, toBankId);
-
-    // Get accounts from registry
-    const fromAccount = this.getAccount(fromAccountId);
     const toAccount = GlobalRegistry.getAccount(toAccountId);
 
     if (!toAccount) {
       throw new AccountNotFoundError(toAccountId);
     }
 
-    try {
-      // Perform the transfer atomically
-      fromAccount.debit(amount);
-      toAccount.credit(amount);
-    } catch (error) {
-      // If debit fails, no need to revert as credit wasn't performed
-      // If credit fails (unlikely), we need to revert the debit
-      if (error instanceof Error && error.message !== "Insufficient funds") {
-        fromAccount.credit(amount); // Revert the debit
-        throw new BankError(`Transfer failed: ${error.message}`);
+    // Try accounts in sequence until we can fulfill the transfer
+    let remainingAmount = amount;
+    let transferSuccessful = false;
+
+    for (const accountId of fromAccountIds) {
+      const fromAccount = this.getAccount(accountId);
+      const availableBalance = fromAccount.getBalance();
+
+      try {
+        if (fromAccount.canDebit(remainingAmount)) {
+          // This account can handle the full remaining amount
+          fromAccount.debit(remainingAmount);
+          toAccount.credit(remainingAmount);
+          transferSuccessful = true;
+          break;
+        }
+        if (fromAccount.canDebit(availableBalance)) {
+          // This account can handle a partial amount
+          fromAccount.debit(availableBalance);
+          toAccount.credit(availableBalance);
+          remainingAmount -= availableBalance;
+        }
+      } catch (error) {
+        // If any error occurs during partial transfer, reverse it
+        if (error instanceof Error && error.message !== "Insufficient funds") {
+          toAccount.debit(amount - remainingAmount); // Reverse what we've transferred so far
+          throw new BankError(`Transfer failed: ${error.message}`);
+        }
       }
-      throw error;
+    }
+
+    if (!transferSuccessful) {
+      toAccount.debit(amount - remainingAmount); // Reverse any partial transfers
+      throw new InsufficientFundsError(
+        fromAccountIds.join(", "),
+        amount,
+        amount - remainingAmount
+      );
     }
   }
 
