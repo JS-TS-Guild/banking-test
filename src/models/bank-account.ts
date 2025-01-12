@@ -1,5 +1,6 @@
 import GlobalRegistry from "../services/GlobalRegistry";
 import type { BankAccountId } from "@/types/Common";
+import { v4 as uuidv4 } from "uuid";
 
 class AccountError extends Error {
   constructor(message: string) {
@@ -39,7 +40,7 @@ class BankAccount {
         "Cannot create account with negative balance when negative balances are not allowed"
       );
     }
-    const id = crypto.randomUUID();
+    const id = uuidv4();
     const account = new BankAccount(id, balance, allowNegativeBalance);
     GlobalRegistry.registerAccount(account);
     return account;

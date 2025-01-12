@@ -1,3 +1,4 @@
+import { v4 as uuidv4 } from "uuid";
 import BankAccount from "./bank-account";
 import GlobalRegistry from "../services/GlobalRegistry";
 import type {
@@ -44,7 +45,7 @@ class Bank {
   private isNegativeAllowed: boolean;
 
   private constructor(options: BankOptions = {}) {
-    this.id = crypto.randomUUID();
+    this.id = uuidv4();
     this.accounts = new Map();
     this.isNegativeAllowed = options.isNegativeAllowed ?? false;
     GlobalRegistry.registerBank(this);

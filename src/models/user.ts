@@ -1,5 +1,6 @@
 import type { UserId, BankAccountId } from "@/types/Common";
 import GlobalRegistry from "../services/GlobalRegistry";
+import { v4 as uuidv4 } from "uuid";
 
 class UserError extends Error {
   constructor(message: string) {
@@ -43,7 +44,7 @@ class User {
       throw new UserError("Invalid email format");
     }
 
-    const id = crypto.randomUUID();
+    const id = uuidv4();
     const user = new User(id, name.trim(), accountIds, email);
     GlobalRegistry.registerUser(user);
     return user;
