@@ -87,36 +87,3 @@ classDiagram
     BankAccount --> Transaction : records
 
 ```
-
-## Transfer Sequence
-
-```mermaid
-sequenceDiagram
-    participant C as Client
-    participant B as Bank
-    participant BA as BankAccount
-    participant GR as GlobalRegistry
-    participant U as User
-
-    C->>B: createAccount(initialBalance)
-
-    alt Negative Balance Not Allowed
-        B->>B: check isNegativeAllowed
-    end
-
-    B->>BA: create(balance, isNegativeAllowed)
-    BA->>BA: generate id
-    BA->>GR: registerAccount(account)
-    GR-->>BA: ok
-    BA-->>B: new BankAccount
-
-    B->>B: accounts.set(account.getId(), account)
-    B-->>C: BankAccount
-
-    C->>U: addAccount(accountId)
-    U->>GR: getAccount(accountId)
-    GR-->>U: BankAccount
-    U->>U: accountIds.add(accountId)
-    U-->>C: ok
-
-```
