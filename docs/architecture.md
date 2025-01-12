@@ -35,6 +35,18 @@ classDiagram
         -recordTransaction(type: string, amount: number): void
     }
 
+    class Transaction {
+        <<interface>>
+        +type: "credit" | "debit"
+        +amount: number
+        +timestamp: Date
+        +balanceAfter: number
+    }
+
+    class TransactionService {
+        +transfer(senderBank: Bank, senderUserId: string, receiverBank: Bank, receiverUserId: string, amount: number): void
+    }
+
     class User {
         -id: UserId
         -name: string
@@ -74,8 +86,25 @@ classDiagram
         +clear(): void
     }
 
-    class TransactionService {
-        +transfer(senderBank: Bank, senderUserId: string, receiverBank: Bank, receiverUserId: string, amount: number): void
+    class BankError {
+        +message: string
+        +name: string
+    }
+
+    class InsufficientFundsError {
+        +accountId: string
+        +requested: number
+        +available: number
+    }
+
+    class AccountError {
+        +message: string
+        +name: string
+    }
+
+    class UserError {
+        +message: string
+        +name: string
     }
 
     Bank "1" --> "*" BankAccount : contains
@@ -84,6 +113,11 @@ classDiagram
     GlobalRegistry "1" --> "*" BankAccount : manages
     GlobalRegistry "1" --> "*" User : manages
     TransactionService ..> Bank : uses
-    BankAccount --> Transaction : records
+    BankAccount "1" --> "*" Transaction : records
+    BankError <|-- InsufficientFundsError : extends
+    AccountError <|-- InsufficientFundsError : extends
+    Error <|-- BankError : extends
+    Error <|-- AccountError : extends
+    Error <|-- UserError : extends
 
 ```
