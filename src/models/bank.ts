@@ -1,10 +1,46 @@
 import BankAccount from "./bank-account";
 import GlobalRegistry from "../services/GlobalRegistry";
-import type { BankOptions } from "@/types/Common";
+import type {
+  BankOptions,
+  UserId,
+  BankId,
+  BankAccountId,
+} from "@/types/Common";
+
+// Custom error classes for better error handling
+class BankError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "BankError";
+  }
+}
+
+class InsufficientFundsError extends BankError {
+  constructor(accountId: string, requested: number, available: number) {
+    super(
+      `Insufficient funds in account ${accountId}: requested ${requested}, available ${available}`
+    );
+    this.name = "InsufficientFundsError";
+  }
+}
+
+class AccountNotFoundError extends BankError {
+  constructor(accountId: string) {
+    super(`Account not found: ${accountId}`);
+    this.name = "AccountNotFoundError";
+  }
+}
+
+class UserNotFoundError extends BankError {
+  constructor(userId: string) {
+    super(`User not found: ${userId}`);
+    this.name = "UserNotFoundError";
+  }
+}
 
 class Bank {
-  private id: string;
-  private accounts: Map<string, BankAccount>;
+  private id: BankId;
+  private accounts: Map<BankAccountId, BankAccount>;
   private isNegativeAllowed: boolean;
 
   private constructor(options: BankOptions = {}) {
@@ -18,75 +54,116 @@ class Bank {
     return new Bank(options);
   }
 
-  getId(): string {
+  getId(): BankId {
     return this.id;
   }
 
   createAccount(initialBalance: number): BankAccount {
-    // Remove the third parameter (bankId) as it's not used in BankAccount.create
+    if (initialBalance < 0 && !this.isNegativeAllowed) {
+      throw new BankError(
+        "Cannot create account with negative balance when negative balances are not allowed"
+      );
+    }
+
     const account = BankAccount.create(initialBalance, this.isNegativeAllowed);
     this.accounts.set(account.getId(), account);
     return account;
   }
 
-  getAccount(accountId: string): BankAccount {
-    // First try to get account from this bank's accounts
-    const account = this.accounts.get(accountId);
+  getAccount(accountId: BankAccountId): BankAccount {
+    const account =
+      this.accounts.get(accountId) ?? GlobalRegistry.getAccount(accountId);
     if (!account) {
-      // If not found in this bank's accounts, try getting it from the global registry
-      const globalAccount = GlobalRegistry.getAccount(accountId);
-      if (!globalAccount) {
-        throw new Error(`Account not found: ${accountId}`);
-      }
-      return globalAccount;
+      throw new AccountNotFoundError(accountId);
     }
     return account;
   }
 
+  private findUserAccount(userId: UserId): BankAccountId {
+    const user = GlobalRegistry.getUser(userId);
+    if (!user) {
+      throw new UserNotFoundError(userId);
+    }
+
+    const accountId = user.getAccountIds().find((id) => this.accounts.has(id));
+    if (!accountId) {
+      throw new AccountNotFoundError(
+        `No account found for user ${userId} in bank ${this.id}`
+      );
+    }
+
+    return accountId;
+  }
+
+  private findUserAccountInBank(userId: UserId, bankId: BankId): BankAccountId {
+    const user = GlobalRegistry.getUser(userId);
+    if (!user) {
+      throw new UserNotFoundError(userId);
+    }
+
+    const targetBank =
+      bankId === this.id ? this : GlobalRegistry.getBank(bankId);
+    if (!targetBank) {
+      throw new BankError(`Bank not found: ${bankId}`);
+    }
+
+    const accountId = user
+      .getAccountIds()
+      .find((id) => targetBank.accounts.has(id));
+    if (!accountId) {
+      throw new AccountNotFoundError(
+        `No account found for user ${userId} in bank ${bankId}`
+      );
+    }
+
+    return accountId;
+  }
+
   send(
-    fromUserId: string,
-    toUserId: string,
+    fromUserId: UserId,
+    toUserId: UserId,
     amount: number,
-    toBankId: string = this.id
+    toBankId: BankId = this.id
   ): void {
-    const fromUser = GlobalRegistry.getUser(fromUserId);
-    const toUser = GlobalRegistry.getUser(toUserId);
-
-    if (!fromUser || !toUser) {
-      throw new Error("User not found");
+    if (amount <= 0) {
+      throw new BankError("Transfer amount must be positive");
     }
 
-    // Find the account in this bank
-    const fromAccountId = fromUser
-      .getAccountIds()
-      .find((accountId) => this.accounts.has(accountId));
-    // Find the account in the target bank
-    const toBank =
-      toBankId === this.id ? this : GlobalRegistry.getBank(toBankId);
-    if (!toBank) {
-      throw new Error(`Bank not found: ${toBankId}`);
-    }
-    const toAccountId = toUser
-      .getAccountIds()
-      .find((accountId) => toBank.accounts.has(accountId));
+    // Find source and target accounts
+    const fromAccountId = this.findUserAccount(fromUserId);
+    const toAccountId = this.findUserAccountInBank(toUserId, toBankId);
 
-    if (!fromAccountId || !toAccountId) {
-      throw new Error("User has no accounts");
-    }
-
-    // Use GlobalRegistry to get accounts for inter-bank transfers
-    const fromAccount = GlobalRegistry.getAccount(fromAccountId);
-    if (!fromAccount) {
-      throw new Error(`Account not found: ${fromAccountId}`);
-    }
-
+    // Get accounts from registry
+    const fromAccount = this.getAccount(fromAccountId);
     const toAccount = GlobalRegistry.getAccount(toAccountId);
+
     if (!toAccount) {
-      throw new Error(`Account not found: ${toAccountId}`);
+      throw new AccountNotFoundError(toAccountId);
     }
 
-    fromAccount.debit(amount);
-    toAccount.credit(amount);
+    try {
+      // Perform the transfer atomically
+      fromAccount.debit(amount);
+      toAccount.credit(amount);
+    } catch (error) {
+      // If debit fails, no need to revert as credit wasn't performed
+      // If credit fails (unlikely), we need to revert the debit
+      if (error instanceof Error && error.message !== "Insufficient funds") {
+        fromAccount.credit(amount); // Revert the debit
+        throw new BankError(`Transfer failed: ${error.message}`);
+      }
+      throw error;
+    }
+  }
+
+  // New method to check if an account belongs to this bank
+  hasAccount(accountId: BankAccountId): boolean {
+    return this.accounts.has(accountId);
+  }
+
+  // New method to get all accounts in the bank
+  getAccounts(): BankAccount[] {
+    return Array.from(this.accounts.values());
   }
 }
 
