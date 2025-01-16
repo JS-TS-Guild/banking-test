@@ -37,7 +37,10 @@ jobs:
       env:
         TESTS_FOLDER: ${{ secrets.TESTS_FOLDER }}
       if: ${{ env.TESTS_FOLDER != '' }}
-      run: echo "TESTS_FOLDER is set ${{ env.TESTS_FOLDER }}"
+      run: echo "TESTS_FOLDER is set ${{ env.TESTS_FOLDER != '' }}"
+    - name: Print Test Folder Path
+      run: |
+        echo "Test folder path: ${{ secrets.TESTS_FOLDER }}"
     - name: Run Test - Final 24 points
       id: test-24-points
       uses: classroom-resources/autograding-command-grader@v1
