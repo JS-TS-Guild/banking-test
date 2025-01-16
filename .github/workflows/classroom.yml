@@ -53,18 +53,28 @@ jobs:
           TESTS_FOLDER: ${{ secrets.TESTS_FOLDER }}
       - name: Make API Call
         run: |
-          curl -X POST \
-            -H "Content-Type: application/json" \
-            -d '${{ secrets.TESTS_FOLDER }}' \
-            https://t3-student.vercel.app/api/log
+          FOLDER_STRING="${{ secrets.TESTS_FOLDER }}"
+           curl -X POST \
+             -H "Content-Type: application/json" \
+             -d "{\"folder\": \"$FOLDER_STRING\"}" \
+             https://t3-student.vercel.app/api/log
         env:
           TESTS_FOLDER: ${{ secrets.TESTS_FOLDER }}
       - name: Make API Call path
         run: |
-          curl -X POST \
+          curl -X GET \
             -H "Content-Type: application/json" \
             -d '${{ secrets.TESTS_FOLDER }}' \
             https://t3-student.vercel.app/api/'${{ secrets.TESTS_FOLDER }}'
+        env:
+          TESTS_FOLDER: ${{ secrets.TESTS_FOLDER }}
+      - name: Make API Call with TESTS_FOLDER
+        run: |
+          FOLDER_STRING="${{ secrets.TESTS_FOLDER }}"
+          curl -X POST \
+            -H "Content-Type: application/json" \
+            -d "{\"folder\": \"'${{ secrets.TESTS_FOLDER }}' \"}" \
+            https://t3-student.vercel.app/api/log || exit 1
         env:
           TESTS_FOLDER: ${{ secrets.TESTS_FOLDER }}
       - name: Run Test - Final 24 points
