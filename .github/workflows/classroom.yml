@@ -1,7 +1,7 @@
 name: Autograding Tests
-'on':
-- push
-- repository_dispatch
+"on":
+  - push
+  - repository_dispatch
 permissions:
   checks: write
   actions: read
@@ -11,51 +11,61 @@ jobs:
     runs-on: ubuntu-latest
     if: github.actor != 'github-classroom[bot]'
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-    - name: Install pnpm
-      run: npm install -g pnpm
-    - name: Install dependencies
-      run: pnpm i
-    - name: Run Test - 2 points
-      id: test-2-points
-      uses: classroom-resources/autograding-command-grader@v1
-      with:
-        test-name: Test - 2 points
-        command: pnpm test-run-basic
-        timeout: 1
-        max-score: 2
-    - name: Run Test - 7 points
-      id: test-7-points
-      uses: classroom-resources/autograding-command-grader@v1
-      with:
-        test-name: Test - 7 points
-        command: pnpm test-run-real
-        timeout: 1
-        max-score: 7
-    - name: Check TESTS_FOLDER
-      env:
-        TESTS_FOLDER: ${{ secrets.TESTS_FOLDER }}
-      if: ${{ env.TESTS_FOLDER != '' }}
-      run: echo "TESTS_FOLDER is set ${{ env.TESTS_FOLDER != '' }}"
-    - name: Print Test Folder Path
-      run: |
-        echo "Test folder path: ${{ secrets.TESTS_FOLDER }}"
-    - name: Run Test - Final 24 points
-      id: test-24-points
-      uses: classroom-resources/autograding-command-grader@v1
-      env:
-        TESTS_FOLDER: "${{ secrets.TESTS_FOLDER }}"
-      with:
-        test-name: Test - 24 points
-        command: TESTS_FOLDER=${{ secrets.TESTS_FOLDER }} pnpm test-run-final
-        timeout: 1
-        max-score: 24
-    - name: Autograding Reporter
-      uses: classroom-resources/autograding-grading-reporter@v1
-      env:
-        TEST-2-POINTS_RESULTS: "${{ steps.test-2-points.outputs.result }}"
-        TEST-7-POINTS_RESULTS: "${{ steps.test-7-points.outputs.result }}"
-        TEST-24-POINTS_RESULTS: "${{ steps.test-24-points.outputs.result }}"
-      with:
-        runners: test-2-points,test-7-points,test-24-points
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Install pnpm
+        run: npm install -g pnpm
+      - name: Install dependencies
+        run: pnpm i
+      - name: Run Test - 2 points
+        id: test-2-points
+        uses: classroom-resources/autograding-command-grader@v1
+        with:
+          test-name: Test - 2 points
+          command: pnpm test-run-basic
+          timeout: 1
+          max-score: 2
+      - name: Run Test - 7 points
+        id: test-7-points
+        uses: classroom-resources/autograding-command-grader@v1
+        with:
+          test-name: Test - 7 points
+          command: pnpm test-run-real
+          timeout: 1
+          max-score: 7
+      - name: Check TESTS_FOLDER
+        env:
+          TESTS_FOLDER: ${{ secrets.TESTS_FOLDER }}
+        if: ${{ env.TESTS_FOLDER != '' }}
+        run: echo "TESTS_FOLDER is set ${{ env.TESTS_FOLDER != '' }}"
+      - name: Print Test Folder Path
+        run: |
+          echo "Test folder path: ${{ secrets.TESTS_FOLDER }}"
+      - name: Print TESTS_FOLDER SHA256
+        run: |
+          echo "${{ secrets.TESTS_FOLDER }}" | sha256sum
+        env:
+          TESTS_FOLDER: ${{ secrets.TESTS_FOLDER }}
+      - name: add /file to the end of the path
+        run: |
+          echo "${{ secrets.TESTS_FOLDER }}/file"
+        env:
+          TESTS_FOLDER: ${{ secrets.TESTS_FOLDER }}
+      - name: Run Test - Final 24 points
+        id: test-24-points
+        uses: classroom-resources/autograding-command-grader@v1
+        env:
+          TESTS_FOLDER: "${{ secrets.TESTS_FOLDER }}"
+        with:
+          test-name: Test - 24 points
+          command: TESTS_FOLDER=${{ secrets.TESTS_FOLDER }} pnpm test-run-final
+          timeout: 1
+          max-score: 24
+      - name: Autograding Reporter
+        uses: classroom-resources/autograding-grading-reporter@v1
+        env:
+          TEST-2-POINTS_RESULTS: "${{ steps.test-2-points.outputs.result }}"
+          TEST-7-POINTS_RESULTS: "${{ steps.test-7-points.outputs.result }}"
+          TEST-24-POINTS_RESULTS: "${{ steps.test-24-points.outputs.result }}"
+        with:
+          runners: test-2-points,test-7-points,test-24-points
